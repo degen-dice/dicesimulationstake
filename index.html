@@ -1,8 +1,5 @@
+// Remove Tailwind, use inline styles for GitHub Pages compatibility
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const houseEdge = 0.01;
 
@@ -30,32 +27,15 @@ export default function DiceGame() {
   const [lossPercent, setLossPercent] = useState(0);
   const [stopOnProfit, setStopOnProfit] = useState(0);
   const [stopOnLoss, setStopOnLoss] = useState(0);
-  const [winStreak, setWinStreak] = useState(0);
-  const [lossStreak, setLossStreak] = useState(0);
-  const [longestWinStreak, setLongestWinStreak] = useState(0);
-  const [longestLossStreak, setLongestLossStreak] = useState(0);
-
-  const formatNumber = (num) => {
-    if (Math.abs(num) >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-    if (Math.abs(num) >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-    if (Math.abs(num) >= 1e3) return (num / 1e3).toFixed(2) + 'K';
-    return num.toFixed(2);
-  };
 
   const runBets = () => {
     let tempBalance = balance;
-    const newResults = [];
+    let tempResults = [];
     let currentBet = betAmount;
-    let currentWinStreak = 0;
-    let currentLossStreak = 0;
-    let winCount = 0;
-    let lossCount = 0;
-    let maxWinStreak = winStreak;
-    let maxLossStreak = lossStreak;
-
     for (let i = 0; i < betCount; i++) {
       if (stopOnProfit && tempBalance - initialBalance >= stopOnProfit) break;
       if (stopOnLoss && initialBalance - tempBalance >= stopOnLoss) break;
+      if (tempBalance < currentBet) break;
 
       const roll = generateRoll();
       const payoutMultiplier = calculatePayoutMultiplier(target, rollUnder);
@@ -63,206 +43,98 @@ export default function DiceGame() {
       const profit = win ? currentBet * (payoutMultiplier - 1) : -currentBet;
       tempBalance += profit;
 
-      if (win) {
-        currentWinStreak++;
-        currentLossStreak = 0;
-        winCount++;
-        if (currentWinStreak > maxWinStreak) maxWinStreak = currentWinStreak;
-      } else {
-        currentLossStreak++;
-        currentWinStreak = 0;
-        lossCount++;
-        if (currentLossStreak > maxLossStreak) maxLossStreak = currentLossStreak;
-      }
-
-      newResults.push({
+      tempResults.push({
+        id: i,
         roll,
         win,
-        profit: parseFloat(profit.toFixed(2)),
-        balance: parseFloat(tempBalance.toFixed(2)),
-        winStreak: currentWinStreak,
-        lossStreak: currentLossStreak,
-        id: i + 1
+        profit,
+        balance: parseFloat(tempBalance.toFixed(2))
       });
 
       if (autoMode) {
         if (win) {
-          if (onWinAction === "increase") {
-            currentBet += (currentBet * winPercent) / 100;
-          } else {
-            currentBet = betAmount;
-          }
+          currentBet = onWinAction === "increase" ? currentBet + (currentBet * winPercent / 100) : betAmount;
         } else {
-          if (onLossAction === "increase") {
-            currentBet += (currentBet * lossPercent) / 100;
-          } else {
-            currentBet = betAmount;
-          }
+          currentBet = onLossAction === "increase" ? currentBet + (currentBet * lossPercent / 100) : betAmount;
         }
       }
     }
-
-    const netProfit = tempBalance - initialBalance;
-    const roi = ((netProfit / initialBalance) * 100).toFixed(2);
-    const winRate = ((winCount / (winCount + lossCount)) * 100).toFixed(2);
-
     setBalance(tempBalance);
-    setResults(newResults.map((r, idx) => ({ ...r, roi, winRate })));
-    setWinStreak(currentWinStreak);
-    setLossStreak(currentLossStreak);
-    setLongestWinStreak(maxWinStreak);
-    setLongestLossStreak(maxLossStreak);
+    setResults(tempResults);
   };
 
   return (
-    <div className="p-4 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Stake-Style Dice Game</h1>
+    <div style={{ padding: '1rem', fontFamily: 'sans-serif' }}>
+      <h1>Stake-Style Dice Game</h1>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <Card>
-          <CardContent className="p-4 space-y-2">
-            <label className="block">Set Initial Balance</label>
-            <Input
-              type="number"
-              value={initialBalance}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                setInitialBalance(val);
-                setBalance(val);
-              }}
-            />
-            <label className="block">Target Number</label>
-            <Input
-              type="number"
-              min="1"
-              max="99"
-              value={target}
-              onChange={(e) => setTarget(parseFloat(e.target.value))}
-            />
-            <label className="block">Bet Amount</label>
-            <Input
-              type="number"
-              min="0.01"
-              value={betAmount}
-              onChange={(e) => setBetAmount(parseFloat(e.target.value))}
-            />
-            <label className="block">Number of Bets</label>
-            <Input
-              type="number"
-              min="1"
-              value={betCount}
-              onChange={(e) => setBetCount(parseInt(e.target.value))}
-            />
-            <div className="flex items-center gap-2">
-              <Button
-                variant={rollUnder ? "default" : "outline"}
-                onClick={() => setRollUnder(true)}
-              >
-                Roll Under
-              </Button>
-              <Button
-                variant={!rollUnder ? "default" : "outline"}
-                onClick={() => setRollUnder(false)}
-              >
-                Roll Over
-              </Button>
-            </div>
+      <div>
+        <label>Initial Balance: </label>
+        <input type="number" value={initialBalance} onChange={(e) => {
+          const val = parseFloat(e.target.value);
+          setInitialBalance(val);
+          setBalance(val);
+        }} />
 
-            <div className="mt-4">
-              <label className="block">Mode</label>
-              <Button variant={autoMode ? "outline" : "default"} onClick={() => setAutoMode(false)}>Manual</Button>
-              <Button variant={autoMode ? "default" : "outline"} onClick={() => setAutoMode(true)}>Auto</Button>
-            </div>
+        <label>Target: </label>
+        <input type="number" value={target} onChange={(e) => setTarget(parseFloat(e.target.value))} />
 
-            {autoMode && (
-              <div className="space-y-2 mt-2">
-                <label>On Win</label>
-                <select
-                  value={onWinAction}
-                  onChange={(e) => setOnWinAction(e.target.value)}
-                  className="w-full border rounded p-1"
-                >
-                  <option value="reset">Reset</option>
-                  <option value="increase">Increase by %</option>
-                </select>
-                {onWinAction === "increase" && (
-                  <Input
-                    type="number"
-                    value={winPercent}
-                    onChange={(e) => setWinPercent(parseFloat(e.target.value))}
-                    placeholder="Increase % on win"
-                  />
-                )}
+        <label>Bet Amount: </label>
+        <input type="number" value={betAmount} onChange={(e) => setBetAmount(parseFloat(e.target.value))} />
 
-                <label>On Loss</label>
-                <select
-                  value={onLossAction}
-                  onChange={(e) => setOnLossAction(e.target.value)}
-                  className="w-full border rounded p-1"
-                >
-                  <option value="reset">Reset</option>
-                  <option value="increase">Increase by %</option>
-                </select>
-                {onLossAction === "increase" && (
-                  <Input
-                    type="number"
-                    value={lossPercent}
-                    onChange={(e) => setLossPercent(parseFloat(e.target.value))}
-                    placeholder="Increase % on loss"
-                  />
-                )}
+        <label>Bets: </label>
+        <input type="number" value={betCount} onChange={(e) => setBetCount(parseInt(e.target.value))} />
 
-                <label>Stop on Profit ($)</label>
-                <Input
-                  type="number"
-                  value={stopOnProfit}
-                  onChange={(e) => setStopOnProfit(parseFloat(e.target.value))}
-                />
+        <div>
+          <label>Roll Mode: </label>
+          <button onClick={() => setRollUnder(true)} style={{ backgroundColor: rollUnder ? '#ddd' : '' }}>Under</button>
+          <button onClick={() => setRollUnder(false)} style={{ backgroundColor: !rollUnder ? '#ddd' : '' }}>Over</button>
+        </div>
 
-                <label>Stop on Loss ($)</label>
-                <Input
-                  type="number"
-                  value={stopOnLoss}
-                  onChange={(e) => setStopOnLoss(parseFloat(e.target.value))}
-                />
-              </div>
+        <div>
+          <label>Auto Mode: </label>
+          <button onClick={() => setAutoMode(false)} style={{ backgroundColor: !autoMode ? '#ddd' : '' }}>Manual</button>
+          <button onClick={() => setAutoMode(true)} style={{ backgroundColor: autoMode ? '#ddd' : '' }}>Auto</button>
+        </div>
+
+        {autoMode && (
+          <div>
+            <label>On Win: </label>
+            <select value={onWinAction} onChange={(e) => setOnWinAction(e.target.value)}>
+              <option value="reset">Reset</option>
+              <option value="increase">Increase %</option>
+            </select>
+            {onWinAction === "increase" && (
+              <input type="number" value={winPercent} onChange={(e) => setWinPercent(parseFloat(e.target.value))} />
             )}
 
-            <Button className="w-full mt-4" onClick={runBets}>Run Bets</Button>
-          </CardContent>
-        </Card>
+            <label>On Loss: </label>
+            <select value={onLossAction} onChange={(e) => setOnLossAction(e.target.value)}>
+              <option value="reset">Reset</option>
+              <option value="increase">Increase %</option>
+            </select>
+            {onLossAction === "increase" && (
+              <input type="number" value={lossPercent} onChange={(e) => setLossPercent(parseFloat(e.target.value))} />
+            )}
 
-        <Card>
-          <CardContent className="p-4">
-            <h2 className="font-bold text-lg">Live Stats</h2>
-            <p className="mt-2">Balance: ${formatNumber(balance)}</p>
-            <p>Last Roll: {results.length > 0 ? results[results.length - 1].roll : '-'}</p>
-            <p>Total Wins: {results.filter(r => r.win).length}</p>
-            <p>Total Losses: {results.filter(r => !r.win).length}</p>
-            <p>Current Win Streak: {winStreak}</p>
-            <p>Current Loss Streak: {lossStreak}</p>
-            <p>Longest Win Streak: {longestWinStreak}</p>
-            <p>Longest Loss Streak: {longestLossStreak}</p>
-            <p>Net Profit: ${formatNumber(balance - initialBalance)}</p>
-            <p>ROI: {results.length > 0 ? results[results.length - 1].roi + '%' : '-'}</p>
-            <p>Win Rate: {results.length > 0 ? results[results.length - 1].winRate + '%' : '-'}</p>
-          </CardContent>
-        </Card>
+            <label>Stop on Profit: </label>
+            <input type="number" value={stopOnProfit} onChange={(e) => setStopOnProfit(parseFloat(e.target.value))} />
+
+            <label>Stop on Loss: </label>
+            <input type="number" value={stopOnLoss} onChange={(e) => setStopOnLoss(parseFloat(e.target.value))} />
+          </div>
+        )}
+
+        <button onClick={runBets}>Run Bets</button>
       </div>
 
-      <Card>
-        <CardContent className="p-4">
-          <h2 className="font-bold text-lg mb-2">Balance Over Time</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={results}>
-              <XAxis dataKey="id" hide />
-              <YAxis domain={["auto", "auto"]} />
-              <Tooltip />
-              <Line type="monotone" dataKey="balance" stroke="#4f46e5" dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      <h2>Results</h2>
+      <ul>
+        {results.map(r => (
+          <li key={r.id}>Roll: {r.roll}, {r.win ? 'Win' : 'Loss'}, Profit: {r.profit.toFixed(2)}, Balance: {r.balance.toFixed(2)}</li>
+        ))}
+      </ul>
+
+      <p>Final Balance: ${balance.toFixed(2)}</p>
     </div>
   );
 }
